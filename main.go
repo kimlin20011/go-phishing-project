@@ -19,6 +19,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	// 發出請求
 	body, header, statusCode := sendReqToUpstream(req)
 
+	// 取代後的 body
+	body = replaceURLInResp(body, header)
+
 	// 用 range 把 header 中的 Set-Cookie 欄位全部複製給瀏覽器的 header
 	for _, v := range header["Set-Cookie"] {
 		// 把 domain=.github.com 移除
@@ -30,8 +33,20 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Set-Cookie", newValue)
 	}
 
-	// 取代後的 body
-	body = replaceURLInResp(body, header)
+	// 把來自 Github 的 header 轉發給瀏覽器
+	for k := range header {
+		if k != "Set-Cookie" {
+			value := header.Get(k)
+			w.Header().Set(k, value)
+		}
+	}
+
+	w.Header().Del("Content-Security-Policy")
+	w.Header().Del("Strict-Transport-Security")
+	w.Header().Del("X-Frame-Options")
+	w.Header().Del("X-Xss-Protection")
+	w.Header().Del("X-Pjax-Version")
+	w.Header().Del("X-Pjax-Url")
 
 	// 如果 status code 是 3XX 就取代 Location 網址，避免直接導會github.com
 	if statusCode >= 300 && statusCode < 400 {
