@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -30,6 +32,14 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 		// 把 secure 移除
 		newValue = strings.Replace(newValue, "secure;", "", 1)
+
+		//如此一來送出去的給github的時候可以順利通過https認證
+		// 幫 cookie 改名
+		// __Host-user-session -> XXHost-user-session
+		// __Secure-cookie-name -> XXSecure-cookie-name
+		newValue = strings.Replace(newValue, "__Host", "XXHost", -1)
+		newValue = strings.Replace(newValue, "__Secure", "XXSecure", -1)
+
 		w.Header().Add("Set-Cookie", newValue)
 	}
 
@@ -95,6 +105,13 @@ func cloneRequest(r *http.Request) *http.Request {
 	req.Header.Set("Origin", origin)
 	//referer 是 當你發出請求時網頁在哪個網址
 	req.Header.Set("Referer", referer)
+
+	for i, value := range req.Header["Cookie"] {
+		// 取代 cookie 名字
+		newValue := strings.Replace(value, "XXHost", "__Host", -1)
+		newValue = strings.Replace(newValue, "XXSecure", "__Secure", -1)
+		req.Header["Cookie"][i] = newValue
+	}
 	return req
 }
 
@@ -155,6 +172,12 @@ func replaceURLInResp(body []byte, header http.Header) []byte {
 }
 
 func main() {
+	// 在 main 裡面使用 logrus
+	l := logrus.New()
+
+	l.Info("Server successful run on 8080 port")
+	//l.Warn("This is a warning")
+	//l.Error("This is an error")
 	http.HandleFunc("/", handler)
 	// 錯誤處理，如果有回傳錯誤就直接終止程式並return error
 	err := http.ListenAndServe(":8080", nil)
