@@ -2,6 +2,8 @@
 package main
 
 import (
+	"fmt"
+	"go-phishing/db" //import db package
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -172,6 +174,13 @@ func replaceURLInResp(body []byte, header http.Header) []byte {
 }
 
 func main() {
+	db.Connect() //connect to db
+	//新增兩筆資料在印出來
+	db.Insert("Hello World")
+	db.Insert("I'm Larry Lu")
+	for _, str := range db.SelectAll() {
+		fmt.Println(str)
+	}
 	// 在 main 裡面使用 logrus
 	l := logrus.New()
 
