@@ -24,3 +24,21 @@ go get -d <module-name>
 go run main.go --port=:80 --phishURL=https://phish-github.com
 ```
 可以直接用來設定phishURL與port參數
+
+### GCP ssh 使用
+* ssh 建立
+```
+ssh-keygen -C <user-name>
+```
+* ssh連線
+```
+ssh <user-name>@35.229.159.117 -i ~/.ssh/id_rsa
+ssh shun@35.229.159.117 -i ~/.ssh/id_rsa
+```
+
+### 複製目前資料夾東西到遠端資料夾
+
+```
+scp -i ~/.ssh/id_rsa -r . shun@35.229.159.117:~/go-phishing
+scp -i ~/.ssh/id_rsa -r ~/Documents/implement/go-phishing-project shun@35.229.159.117:~/go-phishing
+```
