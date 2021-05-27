@@ -42,3 +42,8 @@ ssh shun@35.229.159.117 -i ~/.ssh/id_rsa
 scp -i ~/.ssh/id_rsa -r . shun@35.229.159.117:~/go-phishing
 scp -i ~/.ssh/id_rsa -r ~/Documents/implement/go-phishing-project shun@35.229.159.117:~/go-phishing
 ```
+
+### 暫定sudo密碼
+```
+test
+```
