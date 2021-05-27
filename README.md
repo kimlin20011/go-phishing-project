@@ -47,6 +47,17 @@ scp -i ~/.ssh/id_rsa -r ~/Documents/implement/go-phishing-project shun@35.229.15
 ```
 sudo nohup ./go-phishing --phishURL=https://phish-github.com --port=:80 &
 ```
+
+### kill process
+```
+
+查看pid
+ps -aux
+
+sudo kill <pid>
+```
+
+
 ### 暫定sudo密碼
 ```
 test
